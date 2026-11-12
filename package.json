@@ -1,0 +1,13 @@
+{
+  "name": "dj-playlist-downloader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local web app that turns YouTube and SoundCloud links into high-quality MP3 files.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

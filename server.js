@@ -8,20 +8,47 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 
-const PORT = Number(process.env.PORT || 3000);
-const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DEFAULT_DOWNLOADS_DIR = path.join(ROOT, 'downloads');
+const APP_CONFIG_FILE = path.join(ROOT, 'config.json');
 const CONFIG_FILE = path.join(ROOT, '.djpd-config.json');
+
+function loadAppConfig() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(APP_CONFIG_FILE, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error(`Could not read config.json: ${err.message}`);
+    }
+    return {};
+  }
+}
+
+function positiveInt(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 1) return fallback;
+  return Math.floor(number);
+}
+
+const APP_CONFIG = loadAppConfig();
+const PORT = positiveInt(process.env.PORT, positiveInt(APP_CONFIG.port, 3000));
+const HOST = process.env.HOST || APP_CONFIG.host || '127.0.0.1';
 const YTDLP = process.env.YTDLP_PATH || 'yt-dlp';
 const YOUTUBE_METADATA_CLIENTS =
   process.env.YOUTUBE_METADATA_CLIENTS || process.env.YOUTUBE_CLIENTS || 'android_vr,android,web';
 const YOUTUBE_DOWNLOAD_CLIENTS =
   process.env.YOUTUBE_DOWNLOAD_CLIENTS || process.env.YOUTUBE_CLIENTS || 'android';
 const MAX_BODY = 1024 * 1024;
-const META_CONCURRENCY = 4;
-const DL_CONCURRENCY = Math.max(1, Number(process.env.DOWNLOAD_CONCURRENCY || 2));
+const META_CONCURRENCY = positiveInt(
+  process.env.METADATA_CONCURRENCY,
+  positiveInt(APP_CONFIG.metadataConcurrency, 4)
+);
+const DL_CONCURRENCY = positiveInt(
+  process.env.DOWNLOAD_CONCURRENCY,
+  positiveInt(APP_CONFIG.downloadConcurrency, 10)
+);
 
 function isWsl() {
   try {
@@ -800,7 +827,9 @@ async function handleApi(req, res, url, pathname) {
       directory: downloadsDir,
       ytdlp: YTDLP,
       platform: process.platform,
-      wsl: isWsl()
+      wsl: isWsl(),
+      downloadConcurrency: DL_CONCURRENCY,
+      metadataConcurrency: META_CONCURRENCY
     });
   }
 
